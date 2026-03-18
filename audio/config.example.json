@@ -1,0 +1,11 @@
+{
+    "characters": {
+        "klee": {
+            "gpt_model_path": "models/xxxc.kpt",
+            "sovits_model_path": "models/xxx.pth",
+            "ref_audio_path": "models/xxx.wav",
+            "ref_text": "xxx…",
+            "ref_lang": "中文"
+        }
+    }
+}
