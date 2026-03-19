@@ -61,7 +61,7 @@ class InteractionWorker(QThread):
             self.chat_append_signal.emit(user_text, "user")
 
             # --- 2. 思考回复 (LLM 大脑) ---
-            self.chat_append_signal.emit("🧠 可莉正在思考...", "system")
+            self.chat_append_signal.emit("🧠 正在思考...", "system")
             reply = self.llm.ask(user_text, self.emotions)
 
             # --- 3. 生成声音 (TTS 嘴巴) ---
@@ -116,7 +116,7 @@ class UltimateApp(MainWindow):
         self.asr_engine = ModularInput(use_voice=True, model_size="base")
         self.llm_engine = ModularLLM()
         self.tts_engine = ModularTTS()
-        self.tts_engine.setup_character("klee") 
+        self.tts_engine.setup_character("chengqianyu") 
 
         # 2. 状态存储
         self.latest_emotions = {"Neutral": 1.0} 
@@ -143,7 +143,7 @@ class UltimateApp(MainWindow):
         # 🌟 新增：初始化频道 UI 并加载对应历史
         self._init_channel_ui()
         
-        self.add_message("系统初始化完成！可以开始和可莉聊天啦~", sender="system")
+        self.add_message("系统初始化完成！可以开始聊天啦~", sender="system")
 
     # ==========================================
     # 🌟 频道控制流
