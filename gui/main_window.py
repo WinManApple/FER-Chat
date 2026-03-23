@@ -5,6 +5,9 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QCursor
 from PyQt5.QtMultimedia import QSound
 
+# 🌟 新增：导入我们刚刚写好的状态面板组件
+from gui.status_panel import CharacterStatusPanel
+
 # ==========================================
 # ⌨️ 自定义输入框组件 (现代化毛玻璃风格)
 # ==========================================
@@ -13,10 +16,9 @@ class ChatInputBox(QTextEdit):
 
     def __init__(self):
         super().__init__()
-        self.setFixedHeight(70) # 稍微调高一点，增加呼吸感
-        self.setPlaceholderText("想和可莉说什么呢... (Enter 发送，Shift+Enter 换行)")
+        self.setFixedHeight(70) 
+        self.setPlaceholderText("输入内容(Enter 发送，Shift+Enter 换行)")
         self.setFont(QFont("Microsoft YaHei", 11))
-        # 现代化样式：半透明背景、圆角、柔和边框
         self.setStyleSheet("""
             QTextEdit {
                 padding: 10px; 
@@ -49,17 +51,14 @@ class ChatBubble(QWidget):
     def __init__(self, text, sender="user", audio_path=None):
         super().__init__()
         layout = QHBoxLayout()
-        layout.setContentsMargins(10, 5, 10, 5) # 增加气泡外部间距
+        layout.setContentsMargins(10, 5, 10, 5) 
         
         self.label = QLabel(text)
         self.label.setWordWrap(True)
         self.label.setFont(QFont("Microsoft YaHei", 11))
-        
-        # 限制气泡最大宽度，防止单行过长影响阅读体验
         self.label.setMaximumWidth(600) 
         
         if sender == "user":
-            # 用户的气泡：柔和的薄荷绿，微透明
             self.label.setStyleSheet("""
                 background-color: rgba(149, 236, 105, 0.9);
                 border-radius: 12px;
@@ -70,7 +69,6 @@ class ChatBubble(QWidget):
             layout.addWidget(self.label)
             
         elif sender == "llm":
-            # LLM的气泡：纯净的珍珠白，微透明
             self.label.setStyleSheet("""
                 background-color: rgba(255, 255, 255, 0.9);
                 border-radius: 12px;
@@ -79,7 +77,6 @@ class ChatBubble(QWidget):
             """)
             layout.addWidget(self.label)
             
-            # 语音播放按钮现代化
             if audio_path and os.path.exists(audio_path):
                 self.btn_play = QPushButton("▶️")
                 self.btn_play.setFixedSize(32, 32)
@@ -101,7 +98,6 @@ class ChatBubble(QWidget):
             layout.addStretch()
             
         else:
-            # System(系统提示)的气泡：胶囊样式，居中
             self.label.setStyleSheet("""
                 background-color: rgba(0, 0, 0, 0.25);
                 color: #FFFFFF; 
@@ -128,21 +124,15 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("互动聊天室 - 终端连线系统")
-        # 🌟 修改：扩大默认启动尺寸
         self.resize(1024, 768) 
-        self.setMinimumSize(800, 600) # 设置最小尺寸限制
+        self.setMinimumSize(800, 600) 
         
         self._set_background()
         self.init_ui()
 
     def _set_background(self):
-        """完全弃用本地图片，使用纯代码(QSS)绘制现代感渐变背景"""
-        # 强制顶级 QWidget 渲染 QSS 样式
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setObjectName("MainChatWindow")
-        
-        # 使用线性渐变 (qlineargradient) 手搓深邃的“科技/工业”风格背景
-        # 从左上角 (x1:0, y1:0) 到右下角 (x2:1, y2:1) 的平滑色带过渡
         self.setStyleSheet("""
             QWidget#MainChatWindow {
                 background: qlineargradient(
@@ -156,11 +146,11 @@ class MainWindow(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20) # 增加全局外边距，避免贴边
-        main_layout.setSpacing(15) # 增加组件间距
+        main_layout.setContentsMargins(20, 20, 20, 20) 
+        main_layout.setSpacing(15) 
         
         # ==================================
-        # 顶部：聊天频道控制区 (现代化玻璃面板)
+        # 1. 顶部：聊天频道控制区
         # ==================================
         top_layout = QHBoxLayout()
         
@@ -208,17 +198,22 @@ class MainWindow(QWidget):
         
         top_layout.addWidget(channel_label)
         top_layout.addWidget(self.channel_selector)
-        top_layout.addStretch() # 把新建按钮推到右边
+        top_layout.addStretch() 
         top_layout.addWidget(self.btn_new_channel)
         
         main_layout.addLayout(top_layout)
         
         # ==================================
-        # 中部：聊天记录滚动区 (隐形滚动条)
+        # 🌟 2. 新增插槽：角色状态监控面板
+        # ==================================
+        self.status_panel = CharacterStatusPanel()
+        main_layout.addWidget(self.status_panel)
+
+        # ==================================
+        # 3. 中部：聊天记录滚动区
         # ==================================
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        # 🌟 重点：定制现代化的精细滚动条
         self.scroll_area.setStyleSheet("""
             QScrollArea { background: transparent; border: none; }
             QWidget#scroll_content { background: transparent; }
@@ -246,13 +241,13 @@ class MainWindow(QWidget):
         self.scroll_content.setObjectName("scroll_content")
         self.chat_layout = QVBoxLayout(self.scroll_content)
         self.chat_layout.setAlignment(Qt.AlignTop)
-        self.chat_layout.setSpacing(10) # 气泡之间的间距
+        self.chat_layout.setSpacing(10) 
         
         self.scroll_area.setWidget(self.scroll_content)
         main_layout.addWidget(self.scroll_area)
         
         # ==================================
-        # 底部：输入与操作区 (平滑阴影交互)
+        # 4. 底部：输入与操作区
         # ==================================
         bottom_layout = QHBoxLayout()
         bottom_layout.setSpacing(15)
@@ -303,6 +298,13 @@ class MainWindow(QWidget):
         main_layout.addLayout(bottom_layout)
         self.setLayout(main_layout)
 
+    # ==========================================
+    # 🌟 新增：对外暴露的状态更新接口
+    # ==========================================
+    def update_character_status(self, action, expression, mood, thought):
+        """代理方法：更新角色状态监控面板"""
+        self.status_panel.update_status(action, expression, mood, thought)
+
     def add_message(self, text, sender="user", audio_path=None):
         bubble = ChatBubble(text, sender, audio_path)
         self.chat_layout.addWidget(bubble)
@@ -321,6 +323,16 @@ if __name__ == "__main__":
     window = MainWindow()
     window.add_message("系统初始化完成！可以开始聊天啦~", sender="system")
     window.add_message("千语，今天工业区的设备运转正常吗？", sender="user")
+    
+    # 模拟 LLM 返回的结构化数据更新
+    window.update_character_status(
+        action="单手叉腰", 
+        expression="自信满分", 
+        mood="干劲十足", 
+        thought="嘻嘻，又到了我大显身手的时候了，必须给管理员留下靠谱的印象！"
+    )
+    
+    # 只有单纯的 reply 文字被送到气泡里
     window.add_message("一切正常哦管理员！刚才我还去检查了三号能源管线，没有任何问题。你要过来看看吗？", sender="llm", audio_path="fake_path.wav")
     
     window.show()

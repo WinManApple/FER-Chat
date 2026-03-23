@@ -64,13 +64,13 @@ class ModularLLM:
                 return {self.current_channel: []}
         return {self.current_channel: []}
 
-    def _save_to_json(self, user_text, emotion_data, llm_reply, audio_path=None):
+    def _save_to_json(self, user_text, emotion_data, llm_reply_dict, audio_path=None):
         """将当前频道的对话持久化到 JSON 文件"""
         new_entry = {
             "user": user_text,
             "emotion": emotion_data,
-            "return": llm_reply,
-            "audio_path": audio_path, # 🌟 绑定生成的语音路径
+            "return": llm_reply_dict, # 🌟 这里现在保存的是包含 reply, action 等的字典
+            "audio_path": audio_path, 
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S") 
         }
         
@@ -113,11 +113,18 @@ class ModularLLM:
         # 截取最近 5 轮对话防止上下文过载
         for entry in channel_history[-5:]:
             context.append({"role": "user", "content": entry["user"]})
-            context.append({"role": "assistant", "content": entry["return"]})
+            
+            # 🌟 兼容性处理：把存储的字典转回 JSON 字符串喂给模型，保持它的 JSON 思维
+            assistant_reply = entry["return"]
+            if isinstance(assistant_reply, dict):
+                assistant_reply = json.dumps(assistant_reply, ensure_ascii=False)
+                
+            context.append({"role": "assistant", "content": assistant_reply})
+            
         return context
 
     def ask(self, text, emotion_data):
-        """核心请求接口"""
+        """核心请求接口，返回结构化的 JSON 字典"""
         print(f"\n[LLM] 频道: {self.current_channel} | 收到输入: '{text}' | 当前情绪: {emotion_data}")
         
         # 1. 构造增强型 Prompt (注入情绪)
@@ -129,24 +136,45 @@ class ModularLLM:
         messages.append({"role": "user", "content": full_user_input})
         
         try:
-            # 3. 调用 API
+            # 3. 调用 API，强制开启 JSON 模式
             response = self.client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=messages,
+                response_format={"type": "json_object"}, # 🌟 开启硅基流动的 JSON 模式
                 temperature=0.7 
             )
             
-            reply = response.choices[0].message.content
+            raw_reply = response.choices[0].message.content
             
-            # 4. 持久化保存 (此时音频还没生成，传 None，稍后由主线程调用 update_last_audio_path 回填)
-            self._save_to_json(text, emotion_data, reply, audio_path=None)
+            # 4. 尝试解析 JSON 返回值
+            try:
+                reply_data = json.loads(raw_reply)
+            except json.JSONDecodeError:
+                print(f"[LLM Warning] 返回格式不是严格的 JSON，触发防崩机制。原始内容: {raw_reply}")
+                # 构建后备字典防止流程中断
+                reply_data = {
+                    "reply": raw_reply,
+                    "action": "待机",
+                    "expression": "默认",
+                    "mood": "平静",
+                    "thought": "（系统未能成功解析情绪流）"
+                }
             
-            return reply
+            # 5. 持久化保存 (保存字典)
+            self._save_to_json(text, emotion_data, reply_data, audio_path=None)
+            
+            return reply_data
 
         except Exception as e:
-            error_msg = f"哎呀，大脑出错了哒！错误信息：{e}"
             print(f"[LLM Error] API 请求失败: {e}")
-            return error_msg
+            error_data = {
+                "reply": f"哎呀，大脑出错了哒！网络可能断开了...({e})",
+                "action": "捂头",
+                "expression": "眩晕",
+                "mood": "沮丧",
+                "thought": "糟糕，和终端的连接好像不稳定了..."
+            }
+            return error_data
 
 # ==========================================
 # 交互测试区
@@ -156,14 +184,17 @@ if __name__ == "__main__":
     
     # 测试频道切换功能
     print(f"当前存在的频道: {llm.get_channels()}")
-    llm.switch_channel("测试频道_01")
+    llm.switch_channel("测试频道_JSON测试")
     
     test_emotion = {"sad": "85%", "neutral": "10%"} 
-    test_text = "可莉，我今天感觉有点累..."
+    test_text = "我今天感觉有点累，事情太多了..."
     
-    response = llm.ask(test_text, test_emotion)
-    print(f"\n[当前频道 - {llm.current_channel}] 可莉的回应: {response}")
+    print("\n🚀 正在发送请求并测试 JSON 解析...")
+    response_data = llm.ask(test_text, test_emotion)
     
-    # 模拟生成了语音并回填
-    llm.update_last_audio_path("mock/path/to/audio.wav")
-    print("\n✅ 测试完成，你可以检查 chat_data.json 看是否生成了多频道字典结构。")
+    print(f"\n✅ 成功获取结构化数据:")
+    print(f"🗣️ 对白 (Reply): {response_data.get('reply')}")
+    print(f"🏃 动作 (Action): {response_data.get('action')}")
+    print(f"😊 表情 (Expression): {response_data.get('expression')}")
+    print(f"💖 心情 (Mood): {response_data.get('mood')}")
+    print(f"💭 内心 (Thought): {response_data.get('thought')}")

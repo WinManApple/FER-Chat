@@ -13,7 +13,7 @@ from audio.tts_module import ModularTTS
 from llm.llm_module import ModularLLM
 
 # 最后再导入 PyQt5 相关的模块
-from PyQt5.QtWidgets import QApplication, QInputDialog # 🌟 新增导入 QInputDialog
+from PyQt5.QtWidgets import QApplication, QInputDialog 
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtMultimedia import QSound
 from gui.main_window import MainWindow, ChatBubble
@@ -31,9 +31,12 @@ class InteractionWorker(QThread):
     """
     # 定义与 GUI 沟通的信号
     chat_append_signal = pyqtSignal(str, str)     # 发送者, 完整文本 (系统提示和用户输入)
-    stream_start_signal = pyqtSignal(str, str)    # 🌟 修改：发送者, 音频路径 (新建气泡并绑定语音)
+    stream_start_signal = pyqtSignal(str, str)    # 发送者, 音频路径 (新建气泡并绑定语音)
     stream_char_signal = pyqtSignal(str)          # 单个字符 (追加到气泡)
     finished_signal = pyqtSignal()                # 交互完成，重新激活按钮
+    
+    # 🌟 新增：专门用于更新角色状态面板的信号 (action, expression, mood, thought)
+    status_update_signal = pyqtSignal(str, str, str, str) 
 
     def __init__(self, mode, input_text, current_emotions, asr_engine, llm_engine, tts_engine):
         super().__init__()
@@ -62,7 +65,24 @@ class InteractionWorker(QThread):
 
             # --- 2. 思考回复 (LLM 大脑) ---
             self.chat_append_signal.emit("🧠 正在思考...", "system")
-            reply = self.llm.ask(user_text, self.emotions)
+            
+            # 🌟 修改：接收 LLM 返回的 JSON 字典数据
+            llm_response = self.llm.ask(user_text, self.emotions)
+            
+            # 🌟 新增：多模态数据解包
+            if isinstance(llm_response, dict):
+                spoken_text = llm_response.get("reply", "我好像有点短路了")
+                action = llm_response.get("action", "待机")
+                expression = llm_response.get("expression", "默认")
+                mood = llm_response.get("mood", "平静")
+                thought = llm_response.get("thought", "...")
+            else:
+                # 兜底防错：如果意外返回了纯文本
+                spoken_text = str(llm_response)
+                action, expression, mood, thought = "待机", "默认", "平静", "..."
+
+            # 🌟 新增：立刻把状态发给 GUI，让面板先亮起来！
+            self.status_update_signal.emit(action, expression, mood, thought)
 
             # --- 3. 生成声音 (TTS 嘴巴) ---
             self.chat_append_signal.emit("🎵 正在生成语音...", "system")
@@ -73,10 +93,10 @@ class InteractionWorker(QThread):
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             wav_path = os.path.join(audio_rep_dir, f"rep_{timestamp}.wav")
             
-            # 生成语音并保存到指定路径
-            self.tts.speak(reply, wav_path)
+            # 🌟 修改：这里只把纯文本的 spoken_text 交给 TTS，彻底告别 dict 报错！
+            self.tts.speak(spoken_text, wav_path)
 
-            # 🌟 新增：生成完毕后，通知大脑回填这条记忆的音频路径
+            # 生成完毕后，通知大脑回填这条记忆的音频路径
             self.llm.update_last_audio_path(wav_path)
 
             # --- 4. 视听同步输出 (计算打字速度) ---
@@ -85,13 +105,14 @@ class InteractionWorker(QThread):
                 rate = f.getframerate()
                 duration = frames / float(rate)
             
-            char_delay = duration / len(reply) if len(reply) > 0 else 0
+            # 🌟 修改：以 spoken_text 的长度来计算打字延迟
+            char_delay = duration / len(spoken_text) if len(spoken_text) > 0 else 0
             
-            # 🌟 修改：通知 GUI 新建一个 LLM 气泡，并透传音频路径
+            # 通知 GUI 新建一个 LLM 气泡，并透传音频路径
             self.stream_start_signal.emit("llm", wav_path)
             
-            # 按照音频节奏，逐字发送给 GUI
-            for char in reply:
+            # 🌟 修改：按照音频节奏，逐字发送 spoken_text 给 GUI
+            for char in spoken_text:
                 self.stream_char_signal.emit(char)
                 QThread.msleep(int(char_delay * 1000)) 
 
@@ -116,6 +137,7 @@ class UltimateApp(MainWindow):
         self.asr_engine = ModularInput(use_voice=True, model_size="base")
         self.llm_engine = ModularLLM()
         self.tts_engine = ModularTTS()
+        # 注意这里的名称，确保和你的 config.json 里对应
         self.tts_engine.setup_character("chengqianyu") 
 
         # 2. 状态存储
@@ -137,10 +159,9 @@ class UltimateApp(MainWindow):
         # 5. 绑定 GUI 交互事件
         self.btn_send.clicked.connect(self._on_send_text)
         self.btn_voice.clicked.connect(self._on_send_voice)
-        # 🌟 新增：绑定我们自定义输入框的专属 Enter 发送信号
         self.input_box.return_pressed.connect(self._on_send_text)
         
-        # 🌟 新增：初始化频道 UI 并加载对应历史
+        # 初始化频道 UI 并加载对应历史
         self._init_channel_ui()
         
         self.add_message("系统初始化完成！可以开始聊天啦~", sender="system")
@@ -150,7 +171,7 @@ class UltimateApp(MainWindow):
     # ==========================================
     def _init_channel_ui(self):
         """同步 LLM 里的频道到 UI 下拉框"""
-        self.channel_selector.blockSignals(True) # 阻止下拉框触发 change 事件
+        self.channel_selector.blockSignals(True) 
         self.channel_selector.clear()
         self.channel_selector.addItems(self.llm_engine.get_channels())
         self.channel_selector.setCurrentText(self.llm_engine.current_channel)
@@ -175,7 +196,7 @@ class UltimateApp(MainWindow):
         if ok and text.strip():
             new_channel = text.strip()
             self.llm_engine.switch_channel(new_channel)
-            self._init_channel_ui() # 刷新下拉框数据
+            self._init_channel_ui() 
             self.add_message(f"开启全新话题：【{new_channel}】", sender="system")
 
     def _load_chat_history(self):
@@ -188,10 +209,27 @@ class UltimateApp(MainWindow):
                 
         # 2. 从 LLM 大脑拉取当前频道数据进行重绘
         history = self.llm_engine.history.get(self.llm_engine.current_channel, [])
-        for msg in history:
+        for i, msg in enumerate(history):
             self.add_message(msg["user"], "user")
-            # 如果历史数据里有语音路径，就传过去，UI会自己判断要不要画播放按钮
-            self.add_message(msg["return"], "llm", audio_path=msg.get("audio_path"))
+            
+            # 🌟 修复历史记录加载：处理 JSON 字典格式的历史数据
+            reply_data = msg["return"]
+            if isinstance(reply_data, dict):
+                chat_text = reply_data.get("reply", "")
+                
+                # 如果是最后一条消息，顺便恢复一下状态面板的内容！
+                if i == len(history) - 1:
+                    self.update_character_status(
+                        action=reply_data.get("action", ""),
+                        expression=reply_data.get("expression", ""),
+                        mood=reply_data.get("mood", ""),
+                        thought=reply_data.get("thought", "")
+                    )
+            else:
+                # 兼容老版本的纯字符串历史记录
+                chat_text = str(reply_data)
+                
+            self.add_message(chat_text, "llm", audio_path=msg.get("audio_path"))
             
         self.scroll_area.verticalScrollBar().setValue(
             self.scroll_area.verticalScrollBar().maximum()
@@ -204,7 +242,6 @@ class UltimateApp(MainWindow):
         self.latest_emotions = stats_dict
 
     def _on_send_text(self):
-        # 🌟 修改：因为换成了 QTextEdit，获取文本的方式改为 toPlainText()
         text = self.input_box.toPlainText().strip()
         if not text:
             return
@@ -234,17 +271,18 @@ class UltimateApp(MainWindow):
         self.worker.stream_char_signal.connect(self._append_stream_char)
         self.worker.finished_signal.connect(self._on_interaction_finished)
         
+        # 🌟 新增：将线程发出的状态更新信号，连接到 MainWindow 预留的更新接口
+        self.worker.status_update_signal.connect(self.update_character_status)
+        
         self.worker.start()
 
     # ==========================================
     # 🖨️ 流式打字机效果实现
     # ==========================================
     def _start_stream_bubble(self, sender, audio_path):
-        """🌟 修改：新建空气泡时，接收并绑定传入的音频路径"""
         self.current_stream_bubble = ChatBubble("", sender, audio_path)
         self.chat_layout.addWidget(self.current_stream_bubble)
         
-        # 🌟 新增：在这里调用播放！因为这个函数运行在安全的 GUI 主线程
         if audio_path and os.path.exists(audio_path):
             QSound.play(audio_path)
 
