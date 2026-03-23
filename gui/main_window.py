@@ -2,35 +2,40 @@ import os
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
                              QScrollArea, QLabel, QPushButton, QTextEdit, QComboBox)
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QCursor
 from PyQt5.QtMultimedia import QSound
 
 # ==========================================
-# ⌨️ 自定义输入框组件 (接管键盘事件)
+# ⌨️ 自定义输入框组件 (现代化毛玻璃风格)
 # ==========================================
 class ChatInputBox(QTextEdit):
-    # 定义自定义信号，当用户按下单独的 Enter 键时触发
     return_pressed = pyqtSignal()
 
     def __init__(self):
         super().__init__()
-        self.setFixedHeight(60) # 固定输入框高度
+        self.setFixedHeight(70) # 稍微调高一点，增加呼吸感
         self.setPlaceholderText("想和可莉说什么呢... (Enter 发送，Shift+Enter 换行)")
         self.setFont(QFont("Microsoft YaHei", 11))
+        # 现代化样式：半透明背景、圆角、柔和边框
         self.setStyleSheet("""
-            padding: 8px; 
-            border-radius: 5px; 
-            background: rgba(255, 255, 255, 0.9);
+            QTextEdit {
+                padding: 10px; 
+                border: 1px solid rgba(255, 255, 255, 0.6); 
+                border-radius: 12px; 
+                background: rgba(255, 255, 255, 0.85);
+                color: #333333;
+            }
+            QTextEdit:focus {
+                border: 1px solid rgba(0, 170, 255, 0.8);
+                background: rgba(255, 255, 255, 0.95);
+            }
         """)
 
     def keyPressEvent(self, event):
-        """核心拦截逻辑：判断是换行还是发送"""
         if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
             if event.modifiers() & Qt.ShiftModifier:
-                # 组合键 Shift+Enter：调用父类原生方法，实现换行
                 super().keyPressEvent(event)
             else:
-                # 单独的 Enter：拦截默认换行行为，发射发送信号
                 self.return_pressed.emit()
                 event.accept()
         else:
@@ -38,58 +43,72 @@ class ChatInputBox(QTextEdit):
 
 
 # ==========================================
-# 💬 自定义富文本聊天气泡组件 (支持语音播放)
+# 💬 自定义富文本聊天气泡组件 (精美圆角排版)
 # ==========================================
 class ChatBubble(QWidget):
     def __init__(self, text, sender="user", audio_path=None):
         super().__init__()
         layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(10, 5, 10, 5) # 增加气泡外部间距
         
-        # 气泡的文字标签
         self.label = QLabel(text)
-        self.label.setWordWrap(True) # 允许长文本自动换行
-        self.label.setFont(QFont("Microsoft YaHei", 12))
+        self.label.setWordWrap(True)
+        self.label.setFont(QFont("Microsoft YaHei", 11))
+        
+        # 限制气泡最大宽度，防止单行过长影响阅读体验
+        self.label.setMaximumWidth(600) 
         
         if sender == "user":
-            # 用户的气泡：绿色，靠右对齐
+            # 用户的气泡：柔和的薄荷绿，微透明
             self.label.setStyleSheet("""
-                background-color: #95EC69;
-                border-radius: 10px;
-                padding: 10px;
-                color: black;
+                background-color: rgba(149, 236, 105, 0.9);
+                border-radius: 12px;
+                padding: 12px 16px;
+                color: #111111;
             """)
-            layout.addStretch()         # 左边放弹簧，把气泡挤到右边
+            layout.addStretch()
             layout.addWidget(self.label)
             
         elif sender == "llm":
-            # LLM(可莉)的气泡：白色，靠左对齐
+            # LLM的气泡：纯净的珍珠白，微透明
             self.label.setStyleSheet("""
-                background-color: #FFFFFF;
-                border-radius: 10px;
-                padding: 10px;
-                color: black;
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 12px;
+                padding: 12px 16px;
+                color: #222222;
             """)
             layout.addWidget(self.label)
             
-            # 🌟 扩展功能：如果传入了语音路径且文件真实存在，则挂载播放按钮
+            # 语音播放按钮现代化
             if audio_path and os.path.exists(audio_path):
                 self.btn_play = QPushButton("▶️")
-                self.btn_play.setFixedSize(36, 36)
+                self.btn_play.setFixedSize(32, 32)
+                self.btn_play.setCursor(QCursor(Qt.PointingHandCursor))
                 self.btn_play.setStyleSheet("""
-                    border-radius: 18px; 
-                    background-color: #E0E0E0; 
-                    font-size: 16px;
+                    QPushButton {
+                        border-radius: 16px; 
+                        background-color: rgba(240, 240, 240, 0.8); 
+                        font-size: 14px;
+                        border: 1px solid rgba(200, 200, 200, 0.5);
+                    }
+                    QPushButton:hover { background-color: rgba(220, 220, 220, 1); }
+                    QPushButton:pressed { background-color: rgba(200, 200, 200, 1); }
                 """)
                 self.audio_path = audio_path
                 self.btn_play.clicked.connect(self._play_audio)
                 layout.addWidget(self.btn_play)
                 
-            layout.addStretch()         # 右边放弹簧，把气泡挤到左边
+            layout.addStretch()
             
         else:
-            # System(系统提示)的气泡：灰色，居中，无背景
-            self.label.setStyleSheet("color: #AAAAAA; font-size: 14px; font-style: italic;")
+            # System(系统提示)的气泡：胶囊样式，居中
+            self.label.setStyleSheet("""
+                background-color: rgba(0, 0, 0, 0.25);
+                color: #FFFFFF; 
+                font-size: 12px; 
+                border-radius: 10px;
+                padding: 4px 12px;
+            """)
             self.label.setAlignment(Qt.AlignCenter)
             layout.addStretch()
             layout.addWidget(self.label)
@@ -98,102 +117,182 @@ class ChatBubble(QWidget):
         self.setLayout(layout)
 
     def _play_audio(self):
-        """点击按钮时播放绑定的独立语音"""
         if hasattr(self, 'audio_path'):
             QSound.play(self.audio_path)
 
 
 # ==========================================
-# 🖥️ 主聊天窗口布局
+# 🖥️ 主聊天窗口布局 (宽屏视野 & 沉浸式 UI)
 # ==========================================
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("可莉的互动聊天室")
-        self.resize(800, 600)
+        self.setWindowTitle("互动聊天室 - 终端连线系统")
+        # 🌟 修改：扩大默认启动尺寸
+        self.resize(1024, 768) 
+        self.setMinimumSize(800, 600) # 设置最小尺寸限制
         
-        # 1. 设置自适应的全局背景图
         self._set_background()
-        
-        # 2. 初始化核心 UI 布局
         self.init_ui()
 
     def _set_background(self):
-        """加载背景图片并使用 StyleSheet 实现自适应拉伸"""
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        root_dir = os.path.dirname(current_dir)
-        bg_path = os.path.join(root_dir, 'datasets', 'pictures', 'background.png')
-        
-        # 统一为 QSS 认识的正斜杠
-        bg_path = bg_path.replace('\\', '/')
-        
+        """完全弃用本地图片，使用纯代码(QSS)绘制现代感渐变背景"""
         # 强制顶级 QWidget 渲染 QSS 样式
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setObjectName("MainChatWindow")
         
-        # 给 url 加上单引号，防止路径内有空格导致解析失败
-        self.setStyleSheet(f"""
-            QWidget#MainChatWindow {{
-                border-image: url('{bg_path}') 0 0 0 0 stretch stretch;
-            }}
+        # 使用线性渐变 (qlineargradient) 手搓深邃的“科技/工业”风格背景
+        # 从左上角 (x1:0, y1:0) 到右下角 (x2:1, y2:1) 的平滑色带过渡
+        self.setStyleSheet("""
+            QWidget#MainChatWindow {
+                background: qlineargradient(
+                    spread:pad, x1:0, y1:0, x2:1, y2:1, 
+                    stop:0 #0F2027,     /* 左上角：深空暗蓝 */
+                    stop:0.5 #203A43,   /* 中间过渡：工业深青 */
+                    stop:1 #2C5364      /* 右下角：终端灰蓝 */
+                );
+            }
         """)
 
     def init_ui(self):
         main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(20, 20, 20, 20) # 增加全局外边距，避免贴边
+        main_layout.setSpacing(15) # 增加组件间距
         
         # ==================================
-        # 顶部：聊天频道控制区
+        # 顶部：聊天频道控制区 (现代化玻璃面板)
         # ==================================
         top_layout = QHBoxLayout()
         
-        channel_label = QLabel("当前记忆频道: ")
-        channel_label.setStyleSheet("color: #333333; font-weight: bold; background: rgba(255,255,255,0.7); padding: 4px; border-radius: 4px;")
+        channel_label = QLabel(" 频道节点:")
+        channel_label.setFont(QFont("Microsoft YaHei", 10, QFont.Bold))
+        channel_label.setStyleSheet("""
+            color: #333333; 
+            background: rgba(255,255,255,0.8); 
+            padding: 6px; 
+            border-top-left-radius: 6px;
+            border-bottom-left-radius: 6px;
+        """)
         
         self.channel_selector = QComboBox()
-        self.channel_selector.setStyleSheet("padding: 5px; font-weight: bold; background-color: white;")
+        self.channel_selector.setCursor(QCursor(Qt.PointingHandCursor))
+        self.channel_selector.setStyleSheet("""
+            QComboBox {
+                padding: 5px 10px; 
+                font-family: 'Microsoft YaHei';
+                font-weight: bold; 
+                background: rgba(255,255,255,0.8);
+                border: none;
+                border-top-right-radius: 6px;
+                border-bottom-right-radius: 6px;
+                color: #333;
+            }
+            QComboBox::drop-down { border: none; }
+        """)
         
-        self.btn_new_channel = QPushButton("➕ 新建频道")
-        self.btn_new_channel.setStyleSheet("padding: 5px 10px; background-color: #FFA500; color: white; border-radius: 3px; font-weight: bold;")
+        self.btn_new_channel = QPushButton("➕ 新建链路")
+        self.btn_new_channel.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_new_channel.setStyleSheet("""
+            QPushButton {
+                padding: 6px 15px; 
+                background-color: rgba(255, 153, 51, 0.9); 
+                color: white; 
+                border-radius: 6px; 
+                font-family: 'Microsoft YaHei';
+                font-weight: bold;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+            QPushButton:hover { background-color: rgba(255, 170, 80, 1); }
+            QPushButton:pressed { background-color: rgba(230, 130, 30, 1); }
+        """)
         
         top_layout.addWidget(channel_label)
-        top_layout.addWidget(self.channel_selector, 1) # 拉伸因子为1，填满剩余空间
+        top_layout.addWidget(self.channel_selector)
+        top_layout.addStretch() # 把新建按钮推到右边
         top_layout.addWidget(self.btn_new_channel)
         
         main_layout.addLayout(top_layout)
         
         # ==================================
-        # 中部：聊天记录滚动区
+        # 中部：聊天记录滚动区 (隐形滚动条)
         # ==================================
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        # 将滚动区域本身和视口背景设置为全透明，透出后面的背景图
+        # 🌟 重点：定制现代化的精细滚动条
         self.scroll_area.setStyleSheet("""
             QScrollArea { background: transparent; border: none; }
             QWidget#scroll_content { background: transparent; }
+            
+            QScrollBar:vertical {
+                border: none;
+                background: rgba(0, 0, 0, 0.05);
+                width: 8px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(0, 0, 0, 0.2);
+                min-height: 30px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(0, 0, 0, 0.4);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px; 
+            }
         """)
         
-        # 容纳所有气泡的容器
         self.scroll_content = QWidget()
         self.scroll_content.setObjectName("scroll_content")
         self.chat_layout = QVBoxLayout(self.scroll_content)
-        self.chat_layout.setAlignment(Qt.AlignTop) # 气泡从上往下排
+        self.chat_layout.setAlignment(Qt.AlignTop)
+        self.chat_layout.setSpacing(10) # 气泡之间的间距
         
         self.scroll_area.setWidget(self.scroll_content)
         main_layout.addWidget(self.scroll_area)
         
         # ==================================
-        # 底部：输入与操作区 (引入模块化 InputBox)
+        # 底部：输入与操作区 (平滑阴影交互)
         # ==================================
         bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(15)
         
         self.input_box = ChatInputBox()
         
         btn_layout = QVBoxLayout()
-        self.btn_send = QPushButton("发送文字")
-        self.btn_send.setStyleSheet("padding: 8px; background-color: #0078D7; color: white; border-radius: 5px; font-weight: bold;")
+        btn_layout.setSpacing(8)
+        
+        self.btn_send = QPushButton("✉️ 发送消息")
+        self.btn_send.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_send.setFixedHeight(35)
+        self.btn_send.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(0, 120, 215, 0.85); 
+                color: white; 
+                border-radius: 8px; 
+                font-family: 'Microsoft YaHei';
+                font-weight: bold;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QPushButton:hover { background-color: rgba(0, 140, 240, 1); }
+            QPushButton:pressed { background-color: rgba(0, 100, 190, 1); }
+        """)
         
         self.btn_voice = QPushButton("🎤 语音输入")
-        self.btn_voice.setStyleSheet("padding: 8px; background-color: #F25022; color: white; border-radius: 5px; font-weight: bold;")
+        self.btn_voice.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_voice.setFixedHeight(35)
+        self.btn_voice.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(235, 80, 60, 0.85); 
+                color: white; 
+                border-radius: 8px; 
+                font-family: 'Microsoft YaHei';
+                font-weight: bold;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QPushButton:hover { background-color: rgba(250, 100, 80, 1); }
+            QPushButton:pressed { background-color: rgba(210, 60, 40, 1); }
+        """)
         
         btn_layout.addWidget(self.btn_send)
         btn_layout.addWidget(self.btn_voice)
@@ -205,17 +304,14 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
 
     def add_message(self, text, sender="user", audio_path=None):
-        """向聊天面板添加一条气泡消息，透传可选的音频路径"""
         bubble = ChatBubble(text, sender, audio_path)
         self.chat_layout.addWidget(bubble)
-        
-        # 自动滚动到最底部
         self.scroll_area.verticalScrollBar().setValue(
             self.scroll_area.verticalScrollBar().maximum()
         )
 
 # ==========================================
-# 仅供测试 UI 效果使用
+# 测试 UI
 # ==========================================
 if __name__ == "__main__":
     import sys
@@ -223,12 +319,9 @@ if __name__ == "__main__":
     
     app = QApplication(sys.argv)
     window = MainWindow()
-    
-    # 塞几条测试假数据进去看看效果
-    window.add_message("可莉，你今天想去哪里玩呀？", sender="user")
-    # 模拟一个带音频的气泡 (确保路径不存在时不会报错，而是单纯不显示播放按钮)
-    window.add_message("想去星落湖炸鱼！主人要一起去吗？嘿嘿哒~", sender="llm", audio_path="fake_audio_path.wav")
-    window.add_message("好呀，但是要注意别被琴团长发现了哦。", sender="user")
+    window.add_message("系统初始化完成！可以开始聊天啦~", sender="system")
+    window.add_message("千语，今天工业区的设备运转正常吗？", sender="user")
+    window.add_message("一切正常哦管理员！刚才我还去检查了三号能源管线，没有任何问题。你要过来看看吗？", sender="llm", audio_path="fake_path.wav")
     
     window.show()
     sys.exit(app.exec_())
