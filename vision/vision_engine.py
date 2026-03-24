@@ -50,8 +50,10 @@ class VisionEngine(QThread):
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,), (0.5,))
             ])
-        else:
+            
+        elif model_type == 'resnet':
             self.model = models.resnet18()
+            # 修改全连接层以适配 7 种情绪
             self.model.fc = nn.Linear(self.model.fc.in_features, 7)
             self.transform = transforms.Compose([
                 transforms.Grayscale(num_output_channels=3),
@@ -59,6 +61,21 @@ class VisionEngine(QThread):
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
+            
+        elif model_type == 'efficientnet':
+            self.model = models.efficientnet_b0()
+            # EfficientNet-B0 的分类器结构与 ResNet 不同，需要修改 classifier[1]
+            num_ftrs = self.model.classifier[1].in_features
+            self.model.classifier[1] = nn.Linear(num_ftrs, 7)
+            self.transform = transforms.Compose([
+                transforms.Grayscale(num_output_channels=3),
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+            
+        else:
+            raise ValueError(f"❌ 视觉引擎启动失败：未知的模型类型 '{model_type}'")
 
         # --- 加载权重 ---
         self.model = self.model.to(self.device)

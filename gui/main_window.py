@@ -1,12 +1,14 @@
 import os
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
                              QScrollArea, QLabel, QPushButton, QTextEdit, QComboBox)
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QCursor
 from PyQt5.QtMultimedia import QSound
 
 # 🌟 新增：导入我们刚刚写好的状态面板组件
 from gui.status_panel import CharacterStatusPanel
+
+from audio.asr_module import ModularInput
 
 # ==========================================
 # ⌨️ 自定义输入框组件 (现代化毛玻璃风格)
@@ -116,6 +118,22 @@ class ChatBubble(QWidget):
         if hasattr(self, 'audio_path'):
             QSound.play(self.audio_path)
 
+# ==========================================
+# 🎤 独立语音识别线程 (防止阻塞 UI)
+# ==========================================
+class ASRThread(QThread):
+    # 定义一个信号，用于将识别到的文本传回主线程
+    finished_signal = pyqtSignal(str)
+
+    def __init__(self, asr_engine):
+        super().__init__()
+        self.asr_engine = asr_engine
+
+    def run(self):
+        # 调用 ASR 模块的阻塞式录音与识别方法
+        text = self.asr_engine.get_voice_input()
+        # 识别完成后，发射信号
+        self.finished_signal.emit(text)
 
 # ==========================================
 # 🖥️ 主聊天窗口布局 (宽屏视野 & 沉浸式 UI)
@@ -127,8 +145,15 @@ class MainWindow(QWidget):
         self.resize(1024, 768) 
         self.setMinimumSize(800, 600) 
         
+        # 🌟 1. 初始化语音识别引擎 (建议提前加载好模型)
+        self.asr_engine = ModularInput(use_voice=True, model_size="base")
+        self.asr_thread = None # 初始化线程占位符
+        
         self._set_background()
         self.init_ui()
+        
+        # 🌟 2. 绑定语音按钮的点击事件
+        self.btn_voice.clicked.connect(self.start_voice_recording)
 
     def _set_background(self):
         self.setAttribute(Qt.WA_StyledBackground, True)
@@ -299,7 +324,7 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
 
     # ==========================================
-    # 🌟 新增：对外暴露的状态更新接口
+    # 🌟 对外暴露的状态更新接口
     # ==========================================
     def update_character_status(self, action, expression, mood, thought):
         """代理方法：更新角色状态监控面板"""
@@ -311,6 +336,55 @@ class MainWindow(QWidget):
         self.scroll_area.verticalScrollBar().setValue(
             self.scroll_area.verticalScrollBar().maximum()
         )
+
+    # ==========================================
+    # 🌟 新增：语音录制与 UI 联动逻辑
+    # ==========================================
+    def start_voice_recording(self):
+        """点击语音按钮后触发"""
+        # 1. 改变按钮状态，提示用户正在录音
+        self.btn_voice.setText("🔴 正在倾听...")
+        self.btn_voice.setEnabled(False) # 防抖，防止重复点击
+        self.btn_voice.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(180, 50, 50, 0.9); 
+                color: white; 
+                border-radius: 8px; 
+                font-family: 'Microsoft YaHei';
+                font-weight: bold;
+                border: 1px solid rgba(255, 255, 255, 0.4);
+            }
+        """)
+        
+        # 2. 启动后台语音识别线程
+        self.asr_thread = ASRThread(self.asr_engine)
+        self.asr_thread.finished_signal.connect(self.on_voice_finished)
+        self.asr_thread.start()
+
+    def on_voice_finished(self, text):
+        """语音识别线程结束后的回调"""
+        # 1. 恢复按钮原本的状态和样式
+        self.btn_voice.setText("🎤 语音输入")
+        self.btn_voice.setEnabled(True)
+        self.btn_voice.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(235, 80, 60, 0.85); 
+                color: white; 
+                border-radius: 8px; 
+                font-family: 'Microsoft YaHei';
+                font-weight: bold;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QPushButton:hover { background-color: rgba(250, 100, 80, 1); }
+            QPushButton:pressed { background-color: rgba(210, 60, 40, 1); }
+        """)
+        
+        # 2. 核心逻辑：将识别结果填充到输入框中
+        if text:
+            # 使用 insertPlainText 可以在用户当前光标位置插入文本
+            self.input_box.insertPlainText(text)
+            # 让输入框重新获得焦点
+            self.input_box.setFocus()
 
 # ==========================================
 # 测试 UI

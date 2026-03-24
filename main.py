@@ -22,8 +22,8 @@ from gui.floating_window import FloatingWindow
 # ==========================================
 # ⚙️ 总控台：请在这里填入你训练好的权重路径！
 # ==========================================
-VISION_MODEL_PATH = 'models/visions/models_raw_trained_1111.pth' 
-VISION_MODEL_TYPE = 'raw' 
+VISION_MODEL_PATH = 'models/visions/models_efficientnet_default_20260323_223648.pth' 
+VISION_MODEL_TYPE = 'efficientnet'  # 可选: 'raw' | 'resnet' | 'efficientnet'
 
 class InteractionWorker(QThread):
     """
