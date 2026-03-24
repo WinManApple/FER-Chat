@@ -4,7 +4,7 @@ import wave
 import datetime
 import re
 
-# 🌟 【核心修复】：强行让 PyTorch 第一个加载，霸占内存！
+# 🌟 强行让 PyTorch 第一个加载，霸占内存！
 import torch 
 
 # 然后导入我们的 AI 模块（它们内部也用到了 torch）
@@ -215,15 +215,25 @@ class UltimateApp(MainWindow):
                 
         # 2. 从 LLM 大脑拉取当前频道数据进行重绘
         history = self.llm_engine.history.get(self.llm_engine.current_channel, [])
+        
+        # 🌟 核心修复：如果是空频道（新建或无记录），立刻重置状态面板！
+        if not history:
+            self.update_character_status(
+                action="静止", 
+                expression="默认", 
+                mood="待机", 
+                thought="等待神经信号接入..."
+            )
+            
         for i, msg in enumerate(history):
             self.add_message(msg["user"], "user")
             
-            # 🌟 修复历史记录加载：处理 JSON 字典格式的历史数据
+            # 处理 JSON 字典格式的历史数据
             reply_data = msg["return"]
             if isinstance(reply_data, dict):
                 chat_text = reply_data.get("reply", "")
                 
-                # 如果是最后一条消息，顺便恢复一下状态面板的内容！
+                # 如果是最后一条消息，恢复状态面板的内容
                 if i == len(history) - 1:
                     self.update_character_status(
                         action=reply_data.get("action", ""),
@@ -232,7 +242,6 @@ class UltimateApp(MainWindow):
                         thought=reply_data.get("thought", "")
                     )
             else:
-                # 兼容老版本的纯字符串历史记录
                 chat_text = str(reply_data)
                 
             self.add_message(chat_text, "llm", audio_path=msg.get("audio_path"))
