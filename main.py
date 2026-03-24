@@ -2,6 +2,7 @@ import sys
 import os
 import wave
 import datetime
+import re
 
 # 🌟 【核心修复】：强行让 PyTorch 第一个加载，霸占内存！
 import torch 
@@ -77,9 +78,15 @@ class InteractionWorker(QThread):
                 mood = llm_response.get("mood", "平静")
                 thought = llm_response.get("thought", "...")
             else:
-                # 兜底防错：如果意外返回了纯文本
-                spoken_text = str(llm_response)
-                action, expression, mood, thought = "待机", "默认", "平静", "..."
+                # 兜底防错：如果意外返回了坏掉的 JSON 字符串
+                raw_text = str(llm_response)
+                # 使用正则简单清洗：去掉 JSON 的标点、键名（保留中文字符和基础标点）
+                # 这能有效防止把 "action": "微笑" 里的 "action" 念出来
+                spoken_text = re.sub(r'[a-zA-Z"\{\}\[\]_:]', '', raw_text).strip()
+                if not spoken_text:
+                    spoken_text = "哎呀，我的语言模块刚刚好像卡壳了。"
+                
+                action, expression, mood, thought = "系统异常", "茫然", "错乱", "刚才的数据流好乱..."
 
             # 🌟 新增：立刻把状态发给 GUI，让面板先亮起来！
             self.status_update_signal.emit(action, expression, mood, thought)
@@ -158,7 +165,6 @@ class UltimateApp(MainWindow):
 
         # 5. 绑定 GUI 交互事件
         self.btn_send.clicked.connect(self._on_send_text)
-        self.btn_voice.clicked.connect(self._on_send_voice)
         self.input_box.return_pressed.connect(self._on_send_text)
         
         # 初始化频道 UI 并加载对应历史
@@ -247,9 +253,6 @@ class UltimateApp(MainWindow):
             return
         self.input_box.clear()
         self._start_interaction(mode='text', input_text=text)
-
-    def _on_send_voice(self):
-        self._start_interaction(mode='voice', input_text="")
 
     def _start_interaction(self, mode, input_text):
         """冻结界面，触发后台交互线程"""
