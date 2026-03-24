@@ -20,7 +20,7 @@ class FloatingWindow(QWidget):
         # 3. 初始化 UI
         self.init_ui()
         # 🌟 修改：适当微调尺寸，让布局更有呼吸感
-        self.resize(280, 420) 
+        self.resize(320, 450)
 
     def init_ui(self):
         # 🌟 全面爆改 QSS 全局样式 (毛玻璃质感 & 科幻青配色)
@@ -122,12 +122,12 @@ class FloatingWindow(QWidget):
             row = QHBoxLayout()
             row.setContentsMargins(0, 0, 0, 0)
             
-            # 情绪名称标签：统一宽度，增加间距
+            # 🌟 修改 1：情绪名称标签的宽度从 40 增加到 45
             name_label = QLabel(f"{emo[:3].upper()}:")
             name_label.setFont(QFont("Consolas", 9))
-            name_label.setFixedWidth(40)
+            name_label.setFixedWidth(45) 
             
-            # 🌟 核心：爆改进度条为极细渐变科技感样式
+            # 🌟 核心：爆改进度条为极细渐变科技感样式 (这部分代码保持不变)
             bar = QProgressBar()
             bar.setRange(0, 100)
             bar.setValue(0)
@@ -148,11 +148,11 @@ class FloatingWindow(QWidget):
                 }
             """)
             
-            # 频率数值：用 Monospace 白色
+            # 🌟 修改 2：频率数值的宽度从 35 增加到 45，确保 100% 能完全显示
             val_label = QLabel("0%")
             val_label.setObjectName("ValueLabel")
             val_label.setFont(QFont("Consolas", 9, QFont.Bold))
-            val_label.setFixedWidth(35)
+            val_label.setFixedWidth(45) 
             val_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             
             row.addWidget(name_label)

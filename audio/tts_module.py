@@ -114,8 +114,21 @@ class ModularTTS:
                 audio_data.append(audio_chunk)
                 
             if audio_data:
-                # 拼接所有块并保存为 wav
+                # 拼接所有块
                 audio_concat = np.concatenate(audio_data, axis=0)
+                
+                # ==========================================
+                # 🌟 核心修复：生成 0.8 秒的绝对静音垫片，防止蓝牙吞字
+                # ==========================================
+                silence_duration = 0.8  # 垫入 0.8 秒
+                silence_samples = int(sample_rate * silence_duration)
+                # 生成与原音频数据类型一致的全 0 数组
+                silence_array = np.zeros(silence_samples, dtype=audio_concat.dtype)
+                
+                # 将静音拼接到真实语音的最前面！
+                audio_concat = np.concatenate([silence_array, audio_concat], axis=0)
+                # ==========================================
+
                 # 使用绝对路径保存，确保音频文件回到你的工作目录
                 sf.write(output_abs_path, audio_concat, sample_rate)
                 print(f"[Success] 🎉 语音已保存至: {output_abs_path}")
@@ -140,10 +153,10 @@ if __name__ == "__main__":
     
     # 2. 切换为可莉的声线
     try:
-        tts_engine.setup_character("klee")
+        tts_engine.setup_character("chengqianyu")
         # 3. 输入你想要她说的台词
-        target_text = "前方道路需要右转"
+        target_text = "管理员你好！我是小陈～今天超开心能当你的向导！来来来，让我们一起测试情绪识别模块吧！"
         # 4. 执行生成
-        tts_engine.speak(target_text, output_filename="klee_test.wav")
+        tts_engine.speak(target_text, output_filename="chengqianyu_test.wav")
     except Exception as e:
         print(e)

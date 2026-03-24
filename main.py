@@ -170,7 +170,46 @@ class UltimateApp(MainWindow):
         # 初始化频道 UI 并加载对应历史
         self._init_channel_ui()
         
+        # ==========================================
+        # 🌟 核心修改 1：检测首次运行！
+        # 如果当前频道完全是空的（从零开始），自动注入开场白
+        # ==========================================
+        if not self.llm_engine.history.get(self.llm_engine.current_channel):
+            self._play_welcome_greeting()
+            
         self.add_message("系统初始化完成！可以开始聊天啦~", sender="system")
+
+    # 欢迎语
+    def _play_welcome_greeting(self):
+        """封装专属开场白逻辑：写入记忆、重绘界面、播放声音"""
+        greeting_text = "管理员！我是小陈～今天超开心能当你的向导！来来来，让我们一起测试情绪识别模块吧！嘿嘿！"
+        greeting_audio_path = os.path.join(os.getcwd(), "audio", "greeting.wav")
+        
+        greeting_dict = {
+            "reply": greeting_text,
+            "action": "开心地挥手打招呼，并蹦跳了一下",
+            "expression": "露出灿烂的笑容，眼睛弯成月牙",
+            "mood": "超级开心，充满干劲",
+            "thought": "哇！终于能和管理员开启新的连线了，一定要给他展示一下我元气满满的一面！"
+        }
+        
+        # 强行注入一条互动记忆
+        self.llm_engine._save_to_json(
+            user_text="[系统提示：终端音频及神经链路已激活]", 
+            emotion_data={"Neutral": 1.0}, 
+            llm_reply_dict=greeting_dict, 
+            audio_path=greeting_audio_path
+        )
+
+        # 重绘界面，把开场白刷出来
+        self._load_chat_history()
+
+        # 播放声音
+        if os.path.exists(greeting_audio_path):
+            from PyQt5.QtMultimedia import QSound
+            QSound.play(greeting_audio_path)
+        else:
+            self.add_message("⚠️ 系统提示：未找到 audio/greeting.wav 文件！请生成该音频。", sender="system")
 
     # ==========================================
     # 🌟 频道控制流
@@ -202,7 +241,16 @@ class UltimateApp(MainWindow):
         if ok and text.strip():
             new_channel = text.strip()
             self.llm_engine.switch_channel(new_channel)
-            self._init_channel_ui() 
+            
+            # 🌟 核心修改 2：安全刷新下拉框，防止隐藏的重复绑定 Bug！
+            self.channel_selector.blockSignals(True) 
+            self.channel_selector.clear()
+            self.channel_selector.addItems(self.llm_engine.get_channels())
+            self.channel_selector.setCurrentText(self.llm_engine.current_channel)
+            self.channel_selector.blockSignals(False)
+            
+            self._play_welcome_greeting()
+
             self.add_message(f"开启全新话题：【{new_channel}】", sender="system")
 
     def _load_chat_history(self):
