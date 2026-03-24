@@ -15,8 +15,8 @@ from llm.llm_module import ModularLLM
 
 # 最后再导入 PyQt5 相关的模块
 from PyQt5.QtWidgets import QApplication, QInputDialog 
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtMultimedia import QSound
+from PyQt5.QtCore import QThread, pyqtSignal, QUrl
+from PyQt5.QtMultimedia import QSoundEffect
 from gui.main_window import MainWindow, ChatBubble
 from gui.floating_window import FloatingWindow
 
@@ -147,6 +147,9 @@ class UltimateApp(MainWindow):
         # 注意这里的名称，确保和你的 config.json 里对应
         self.tts_engine.setup_character("chengqianyu") 
 
+        # 🌟 新增：初始化现代的音频播放器，绑定到 self 防止被垃圾回收
+        self.audio_player = QSoundEffect(self)
+
         # 2. 状态存储
         self.latest_emotions = {"Neutral": 1.0} 
         self.current_stream_bubble = None       
@@ -206,8 +209,10 @@ class UltimateApp(MainWindow):
 
         # 播放声音
         if os.path.exists(greeting_audio_path):
-            from PyQt5.QtMultimedia import QSound
-            QSound.play(greeting_audio_path)
+            # 🌟 修改：使用 QSoundEffect 播放，兼容 Win11 录屏
+            self.audio_player.setSource(QUrl.fromLocalFile(greeting_audio_path))
+            self.audio_player.setVolume(1.0)
+            self.audio_player.play()
         else:
             self.add_message("⚠️ 系统提示：未找到 audio/greeting.wav 文件！请生成该音频。", sender="system")
 
@@ -344,7 +349,10 @@ class UltimateApp(MainWindow):
         self.chat_layout.addWidget(self.current_stream_bubble)
         
         if audio_path and os.path.exists(audio_path):
-            QSound.play(audio_path)
+            # 🌟 修改：使用 QSoundEffect 播放
+            self.audio_player.setSource(QUrl.fromLocalFile(audio_path))
+            self.audio_player.setVolume(1.0)
+            self.audio_player.play()
 
     def _append_stream_char(self, char):
         if self.current_stream_bubble:
