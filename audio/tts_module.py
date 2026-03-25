@@ -151,11 +151,11 @@ if __name__ == "__main__":
     # 1. 实例化我们的模块化引擎
     tts_engine = ModularTTS()
     
-    # 2. 切换为可莉的声线
+    # 2. 切换声线
     try:
         tts_engine.setup_character("chengqianyu")
         # 3. 输入你想要她说的台词
-        target_text = "管理员你好！我是小陈～今天超开心能当你的向导！来来来，让我们一起测试情绪识别模块吧！"
+        target_text = "管理员你好，我是陈千语！"
         # 4. 执行生成
         tts_engine.speak(target_text, output_filename="chengqianyu_test.wav")
     except Exception as e:
