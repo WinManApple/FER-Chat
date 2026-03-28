@@ -340,7 +340,6 @@ class UltimateApp(MainWindow):
         self.worker.status_update_signal.connect(self.update_character_status)
         
         self.worker.start()
-
     # ==========================================
     # 🖨️ 流式打字机效果实现
     # ==========================================

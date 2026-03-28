@@ -155,7 +155,7 @@ if __name__ == "__main__":
     try:
         tts_engine.setup_character("chengqianyu")
         # 3. 输入你想要她说的台词
-        target_text = "管理员你好，我是陈千语！"
+        target_text = "你居然这样对我，不理你了！"
         # 4. 执行生成
         tts_engine.speak(target_text, output_filename="chengqianyu_test.wav")
     except Exception as e:

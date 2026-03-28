@@ -129,7 +129,7 @@ class ModularLLM:
         
         # 1. 构造增强型 Prompt (注入情绪)
         emotion_str = ", ".join([f"{k}:{v}" for k, v in emotion_data.items()])
-        full_user_input = f"【主人当前情绪成分: {emotion_str}】\n用户的输入: {text}"
+        full_user_input = f"【用户当前情绪成分: {emotion_str}】\n用户的输入: {text}"
         
         # 2. 获取包含历史的上下文
         messages = self._format_context()
