@@ -34,9 +34,14 @@
 
 1.  **准备大模型配置**：
     在 `llm/` 目录下复制 `config.example.json` 并重命名为 `config.json`，填入你的 API 密钥与大模型接口地址。
-2.  **准备语音合成组件**：
+
+2. **准备|训练模型**
+    训练视觉模型、获取训练好的GPT-SoVITS模型
+
+3.  **准备语音合成组件**：
     * 将下载好的 GPT-SoVITS 源码解压至项目根目录，并命名为 `GPT-SoVITS`。
     * 在 `audio/` 目录下复制 `config.example.json` 并重命名为 `config.json`，配置角色模型及参考音频的相对路径。
+    
 3.  **运行系统**：
     ```bash
     python main.py
